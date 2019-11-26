@@ -88,6 +88,7 @@ def transformAndSaveAndExecute(filename, request):
     for sheet in request.keys():
         transformData(filename, request, res, sheet)
     print(" ---- END TRANSFORMING " + filename)
+    originalFilename = filename
     filename, file_extension = os.path.splitext(filename)
     filename = filename + '.json'
     res["filename"] = filename
@@ -96,18 +97,31 @@ def transformAndSaveAndExecute(filename, request):
     saveToBlob(filename, doc, app.config["MAPPEDDATA"])
     print(" ---- END SAVING " + filename + " TO BLOB STORAGE [mapped_data]")
     print(" ---- BEGIN EXECUTING ADF PIPELINE")
-    executePipeLine(filename)
+    run_exec = executePipeLine(filename)
+    deleteFileByPath(app.config["UPLOAD_FOLDER"]+'/'+originalFilename)
+    print(" ---- Pipeline Run ID: " + str(run_exec.run_id), " Filename: " + filename)
     print(" ---- END EXECUTING ADF PIPELINE")
-    return {"status": "Done", "message": "Success"}
+    return {"status": "Launched", "runid": str(run_exec.run_id)}
+
+
+def deleteFileByPath(filePath):
+    if os.path.exists(filePath):
+        os.remove(filePath)
 
 
 def transformData(filename, request, res, sheet):
     df = getDataFrameBySheet(filename, sheet)
     mapping = request[sheet]["mapping"]
-    headers = list(mapping.keys())
-    df = df[headers]
-    df.rename(columns=mapping, inplace=True)
+    df = generateMappedColumn(df, mapping)
     res[request[sheet]["type"]] = json.loads(convertToJSON(df))
+
+
+def generateMappedColumn(df, mapping):
+    for key in mapping.keys():
+        df[key] = df[mapping[key]]
+    new_headers = list(mapping.keys())
+    df = df[new_headers]
+    return df
 
 
 def saveToBlob(filename, data, folder=""):
@@ -124,7 +138,7 @@ def executePipeLine(filname):
     params = {
         "fileName": filname
     }
-    adf.executePipline(params)
+    return adf.executePipline(params)
 
 
 def automaticHeaderMapper(mappedField, headers):
@@ -135,7 +149,8 @@ def automaticHeaderMapper(mappedField, headers):
             if str.strip(copy.lower()) == " ".join(target["name"].split("_")).lower():
                 target["value"] = col
                 break
-            if lev.ratio(str.strip(copy.lower()), " ".join(target["name"].split("_")).lower()) >= app.config["MINLEV"]:
+            elif lev.ratio(str.strip(copy.lower()), " ".join(target["name"].split("_")).lower()) >= app.config[
+                "MINLEV"]:
                 target["value"] = col
                 break
     return mappedField

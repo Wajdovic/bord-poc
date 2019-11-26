@@ -7,6 +7,7 @@ from flask_cors import CORS
 import constants as const
 import services.azureManager as adf
 import json
+import services.utils as utils
 
 ALLOWED_EXTENSIONS = set(['xlsx', 'xls'])
 
@@ -39,9 +40,15 @@ def detectFileStruct():
 #     data["global_metadata"] = {"filename": filename}
 #     return "Done"
 
-# @app.route("/test", methods=['GET'])
-# def refresh():
-#     return Response(json.dumps(fm.automaticHeaderMapper(["Cedant Name"])), mimetype='application/json')
+
+@app.route("/<poc>/status", methods=['GET'])
+def getStatus(poc):
+    if poc == app.config["POC1"]:
+        id = request.args.get("id")
+        pipeline_execution = vars(adf.getPiplineExecutionDetails(id))
+        return Response(json.dumps(pipeline_execution,default=utils.serializer, indent=2), mimetype='application/json')
+    else:
+        os.abort(404)
 
 
 @app.route("/<poc>/transform", methods=['POST'])
@@ -53,7 +60,10 @@ def transformFile(poc):
         os.abort(404)
     # data = fm.readExcel(filename)
     # data["global_metadata"] = {"filename": filename}
-    return fm.transformAndSaveAndExecute(filename, request.get_json())
+    if poc == app.config["POC1"]:
+        return fm.transformAndSaveAndExecute(filename, request.get_json())
+    else:
+        os.abort(404)
 
 
 @app.route('/<poc>/upload', methods=['POST'])
