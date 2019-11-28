@@ -34,12 +34,14 @@ def getDataFrameBySheet(FileName, Sheetname, header_index=-1, data_end_index=Non
     if header_index == -1:
         i = -1
         is_header = True
-        while is_header:
+        while is_header and i <= 5:
             df = pd.read_excel('./temp/' + FileName, sheet_name=Sheetname, skiprows=[i])
             if all(isinstance(item, str) for item in df.columns.values):
                 is_header = False
             i += 1
         # df.columns = [col.strip().lower() for col in df.columns]
+        if i == 6:
+            df = pd.read_excel('./temp/' + FileName, sheet_name=Sheetname, skiprows=[header_index])
     else:
         df = pd.read_excel('./temp/' + FileName, sheet_name=Sheetname, skiprows=[header_index])
 
@@ -52,10 +54,13 @@ def getDataFrameBySheet(FileName, Sheetname, header_index=-1, data_end_index=Non
             pass
     seperator = '_'
     for duplicate_column in df.columns:
-        new_name = duplicate_column.split(".")
-        new_name = seperator.join(new_name)
-        df = df.rename(
-            columns={duplicate_column: new_name})
+        try:
+            new_name = duplicate_column.split(".")
+            new_name = seperator.join(new_name)
+            df = df.rename(
+                columns={duplicate_column: new_name})
+        except:
+            pass
     return df
 
 
@@ -86,19 +91,23 @@ def transformAndSaveAndExecute(filename, request):
     print(" ---- BEGIN TRANSFORMING " + filename)
     res = {}
     for sheet in request.keys():
-        transformData(filename, request, res, sheet)
+        if sheet != "input":
+            transformData(filename, request, res, sheet)
     print(" ---- END TRANSFORMING " + filename)
     originalFilename = filename
     filename, file_extension = os.path.splitext(filename)
     filename = filename + '.json'
     res["filename"] = filename
+    res["currency"] = request["input"]["currency"]
+    res["cedant_name"] = request["input"]["cedant_name"]
+    res["writtenEarned"] = request["input"]["writtenEarned"]
     doc = json.dumps(res)
     print(" ---- BEGIN SAVING " + filename + " TO BLOB STORAGE [mapped_data]")
     saveToBlob(filename, doc, app.config["MAPPEDDATA"])
     print(" ---- END SAVING " + filename + " TO BLOB STORAGE [mapped_data]")
     print(" ---- BEGIN EXECUTING ADF PIPELINE")
     run_exec = executePipeLine(filename)
-    deleteFileByPath(app.config["UPLOAD_FOLDER"]+'/'+originalFilename)
+    deleteFileByPath(app.config["UPLOAD_FOLDER"] + '/' + originalFilename)
     print(" ---- Pipeline Run ID: " + str(run_exec.run_id), " Filename: " + filename)
     print(" ---- END EXECUTING ADF PIPELINE")
     return {"status": "Launched", "runid": str(run_exec.run_id)}
@@ -142,17 +151,21 @@ def executePipeLine(filname):
 
 
 def automaticHeaderMapper(mappedField, headers):
-    # add known header as default mapping !!!
-    for col in headers:
-        copy = col
-        for target in mappedField:
-            if str.strip(copy.lower()) == " ".join(target["name"].split("_")).lower():
-                target["value"] = col
-                break
-            elif lev.ratio(str.strip(copy.lower()), " ".join(target["name"].split("_")).lower()) >= app.config[
-                "MINLEV"]:
-                target["value"] = col
-                break
+    for target in mappedField:
+        for col in headers:
+            copy = col
+            try:
+                if str.strip(copy.lower()) == " ".join(target["name"].split("_")).lower():
+                    target["value"] = col
+                    break
+                elif checkIfHeaderIsInPossibleMappedValues(copy,target):
+                    target["value"] = col
+                    break
+                elif lev.ratio(str.strip(copy.lower()), " ".join(target["name"].split("_")).lower()) >= app.config["MINLEV"]:
+                    target["value"] = col
+                    break
+            except:
+                pass
     return mappedField
 
 
@@ -175,3 +188,8 @@ def getTargetFieldsByPoc(poc, filename):
     else:
         print("ERROR GETTING TARGET FIELDS FOR POC: " + poc)
         os.abort(404)
+
+
+def checkIfHeaderIsInPossibleMappedValues(col, target):
+    pssibleValues = const.possibleMappingPoc1[target["name"]]
+    return str.strip(col) in pssibleValues
