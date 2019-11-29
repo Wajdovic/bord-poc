@@ -1,7 +1,7 @@
 import uuid
 import services.fileManager as fm
 import os
-from flask import Flask, request, Response
+from flask import Flask, request, Response, render_template
 from werkzeug.utils import secure_filename
 from flask_cors import CORS
 import constants as const
@@ -18,15 +18,15 @@ def allowed_file(filename):
 
 app = Flask(__name__)
 app.config.from_pyfile('config.py')
-CORS(app)
+CORS(app, ressources=r'/*')
 
 
-@app.route("/detect", methods=['GET'])
-def detectFileStruct():
-    filename = request.args.get("filename")
-    if filename is None:
-        os.abort(404)
-    return fm.readExcel(filename)
+# @app.route("/detect", methods=['GET'])
+# def detectFileStruct():
+#     filename = request.args.get("filename")
+#     if filename is None:
+#         os.abort(404)
+#     return fm.readExcel(filename)
 
 
 # @app.route("/refresh", methods=['POST'])
@@ -46,7 +46,7 @@ def getStatus(poc):
     if poc == app.config["POC1"]:
         id = request.args.get("id")
         pipeline_execution = vars(adf.getPiplineExecutionDetails(id))
-        return Response(json.dumps(pipeline_execution,default=utils.serializer, indent=2), mimetype='application/json')
+        return Response(json.dumps(pipeline_execution, default=utils.serializer, indent=2), mimetype='application/json')
     else:
         os.abort(404)
 
@@ -112,12 +112,12 @@ def getTarget(poc):
     filename = request.args.get("filename")
     if filename is None:
         os.abort(404)
-    return fm.getTargetFieldsByPoc(poc,filename)
+    return fm.getTargetFieldsByPoc(poc, filename)
 
 
 @app.route("/<poc>/sheettypes", methods=['GET'])
 def getTargetSheets(poc):
-    print(" ---- GETTING SHEET TYPES FOR POC: "+poc)
+    print(" ---- GETTING SHEET TYPES FOR POC: " + poc)
     if poc == "poc1":
         print(" ---- END GETTING SHEET TYPES FOR POC: " + poc)
         return Response(json.dumps(const.targetSheetsPoc1), mimetype='application/json')
