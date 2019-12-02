@@ -12,20 +12,20 @@ import Levenshtein as lev
 import copy
 
 
-def getFileFromBlob(filename):
-    blob_service = getBlobService()
-    blob_service.get_blob_to_path(app.config["CONTAINERNAME"], filename, './temp/' + filename)
-
-
-def getBlobService():
-    STORAGEACCOUNTNAME = app.config["STORAGEACCOUNTNAME"]
-    STORAGEACCOUNTKEY = app.config["STORAGEACCOUNTKEY"]
-    blob_service = BlockBlobService(account_name=STORAGEACCOUNTNAME, account_key=STORAGEACCOUNTKEY)
-    return blob_service
+# def getFileFromBlob(filename):
+#     blob_service = getBlobService()
+#     blob_service.get_blob_to_path(app.config["CONTAINERNAME"], filename, './temp/' + filename)
+#
+#
+# def getBlobService():
+#     STORAGEACCOUNTNAME = app.config["STORAGEACCOUNTNAME"]
+#     STORAGEACCOUNTKEY = app.config["STORAGEACCOUNTKEY"]
+#     blob_service = BlockBlobService(account_name=STORAGEACCOUNTNAME, account_key=STORAGEACCOUNTKEY)
+#     return blob_service
 
 
 def getSheetNames(filename):
-    df = pd.read_excel("./temp/" + filename, None)
+    df = pd.read_excel(os.path.join(app.config['UPLOAD_FOLDER'], filename), None)
     return list(df.keys())
 
 
@@ -35,15 +35,17 @@ def getDataFrameBySheet(FileName, Sheetname, header_index=-1, data_end_index=Non
         i = -1
         is_header = True
         while is_header and i <= 5:
-            df = pd.read_excel('./temp/' + FileName, sheet_name=Sheetname, skiprows=[i])
+            df = pd.read_excel(os.path.join(app.config['UPLOAD_FOLDER'], FileName), sheet_name=Sheetname, skiprows=[i])
             if all(isinstance(item, str) for item in df.columns.values):
                 is_header = False
             i += 1
         # df.columns = [col.strip().lower() for col in df.columns]
         if i == 6:
-            df = pd.read_excel('./temp/' + FileName, sheet_name=Sheetname, skiprows=[header_index])
+            df = pd.read_excel(os.path.join(app.config['UPLOAD_FOLDER']), FileName, sheet_name=Sheetname,
+                               skiprows=[header_index])
     else:
-        df = pd.read_excel('./temp/' + FileName, sheet_name=Sheetname, skiprows=[header_index])
+        df = pd.read_excel(os.path.join(app.config['UPLOAD_FOLDER']), FileName, sheet_name=Sheetname,
+                           skiprows=[header_index])
 
     if data_end_index is not None:
         df.drop(df.index[data_end_index])
@@ -101,13 +103,15 @@ def transformAndSaveAndExecute(filename, request):
     res["currency"] = request["input"]["currency"]
     res["cedant_name"] = request["input"]["cedant_name"]
     res["writtenEarned"] = request["input"]["writtenEarned"]
-    doc = json.dumps(res)
-    print(" ---- BEGIN SAVING " + filename + " TO BLOB STORAGE [mapped_data]")
-    saveToBlob(filename, doc, app.config["MAPPEDDATA"])
-    print(" ---- END SAVING " + filename + " TO BLOB STORAGE [mapped_data]")
+    # doc = json.dumps(res)
+    print(" ---- BEGIN SAVING " + filename + " TO [mapped_data]")
+    # saveToBlob(filename, doc, app.config["MAPPEDDATA"])
+    with open(os.path.join(app.config['MAPPED_FOLDER'], filename), 'w') as outfile:
+        json.dump(res, outfile)
+    print(" ---- END SAVING " + filename + " TO [mapped_data]")
     print(" ---- BEGIN EXECUTING ADF PIPELINE")
     run_exec = executePipeLine(filename)
-    deleteFileByPath(app.config["UPLOAD_FOLDER"] + '/' + originalFilename)
+    # deleteFileByPath(app.config["UPLOAD_FOLDER"] + '/' + originalFilename)
     print(" ---- Pipeline Run ID: " + str(run_exec.run_id), " Filename: " + filename)
     print(" ---- END EXECUTING ADF PIPELINE")
     return {"status": "Launched", "runid": str(run_exec.run_id)}
@@ -133,14 +137,14 @@ def generateMappedColumn(df, mapping):
     return df
 
 
-def saveToBlob(filename, data, folder=""):
-    blob_service = getBlobService()
-    blob_service.create_blob_from_text(app.config["CONTAINERNAME"], folder + filename, data)
-
-
-def saveRawFile(filename, folder=""):
-    blob_service = getBlobService()
-    blob_service.create_blob_from_path(app.config["CONTAINERNAME"] + folder, filename, './temp/' + filename)
+# def saveToBlob(filename, data, folder=""):
+#     blob_service = getBlobService()
+#     blob_service.create_blob_from_text(app.config["CONTAINERNAME"], folder + filename, data)
+#
+#
+# def saveRawFile(filename, folder=""):
+#     blob_service = getBlobService()
+#     blob_service.create_blob_from_path(app.config["CONTAINERNAME"] + folder, filename, './temp/' + filename)
 
 
 def executePipeLine(filname):
@@ -158,7 +162,7 @@ def automaticHeaderMapper(mappedField, headers):
                 if str.strip(copy.lower()) == " ".join(target["name"].split("_")).lower():
                     target["value"] = col
                     break
-                elif checkIfHeaderIsInPossibleMappedValues(copy,target):
+                elif checkIfHeaderIsInPossibleMappedValues(copy, target):
                     target["value"] = col
                     break
                 elif lev.ratio(str.strip(copy.lower()), " ".join(target["name"].split("_")).lower()) >= app.config["MINLEV"]:

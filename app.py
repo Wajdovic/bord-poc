@@ -85,12 +85,12 @@ def upload_file(poc):
             filename = filename + '-' + id + file_extension
             if not os.path.isdir(app.config['UPLOAD_FOLDER']):
                 os.mkdir(app.config['UPLOAD_FOLDER'])
-            print(" ---- UPLOADING " + filename + " To TEMP FOLDER")
+            print(" ---- UPLOADING " + filename)
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
             data = fm.readExcel(filename)
             data["metadata"] = {"filename": filename}
-            print(" ---- SAVING RAW FILE  " + filename + " IN BLOB STORAGE [raw_data]")
-            fm.saveRawFile(filename, app.config["RAWDATA"])
+            # print(" ---- SAVING RAW FILE  " + filename + " IN BLOB STORAGE [raw_data]")
+            # fm.saveRawFile(filename, app.config["RAWDATA"])
             return data, 200
         else:
             return {"message": 'Allowed file types are xlsx,xls'}, 400
