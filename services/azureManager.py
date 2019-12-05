@@ -24,6 +24,5 @@ def executePipline(params,p_name):
 def getPiplineExecutionDetails(id):
     rg_name = app.config["RG_NAME"]
     df_name = app.config["DF_NAME"]
-    p_name = app.config["P_NAME"]
     adf_client = getAdfClient()
     return adf_client.pipeline_runs.get(rg_name,df_name,id)

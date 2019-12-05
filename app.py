@@ -43,7 +43,7 @@ CORS(app, ressources=r'/*')
 
 @app.route("/<poc>/status", methods=['GET'])
 def getStatus(poc):
-    if poc == app.config["POC1"]:
+    if poc == app.config["POC1"] or poc == app.config["POC2"]:
         id = request.args.get("id")
         pipeline_execution = vars(adf.getPiplineExecutionDetails(id))
         return Response(json.dumps(pipeline_execution, default=utils.serializer, indent=2), mimetype='application/json')
