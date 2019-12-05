@@ -62,6 +62,8 @@ def transformFile(poc):
     # data["global_metadata"] = {"filename": filename}
     if poc == app.config["POC1"]:
         return fm.transformAndSaveAndExecute(filename, request.get_json())
+    elif poc == app.config["POC2"]:
+        return fm.transformAndSaveAndExecute4(filename,request.get_json())
     else:
         os.abort(404)
 
@@ -73,6 +75,13 @@ def upload_file(poc):
         os.abort(404)
     if request.method == 'POST':
         # check if the post request has the file part
+        uploadfolder = ""
+        if poc == "poc1":
+            uploadfolder = app.config['UPLOAD_FOLDER']
+        elif poc == "poc2":
+            uploadfolder = app.config['UPLOAD_FOLDER_4']
+        else:
+            os.abort(404)
         if 'file' not in request.files:
             return {"message": 'No file part'}, 400
         file = request.files['file']
@@ -83,11 +92,11 @@ def upload_file(poc):
             filename, file_extension = os.path.splitext(filename)
             id = str(uuid.uuid4())
             filename = filename + '-' + id + file_extension
-            if not os.path.isdir(app.config['UPLOAD_FOLDER']):
-                os.mkdir(app.config['UPLOAD_FOLDER'])
+            if not os.path.isdir(uploadfolder):
+                os.mkdir(uploadfolder)
             print(" ---- UPLOADING " + filename)
-            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            data = fm.readExcel(filename)
+            file.save(os.path.join(uploadfolder, filename))
+            data = fm.readExcel(filename,uploadfolder)
             data["metadata"] = {"filename": filename}
             # print(" ---- SAVING RAW FILE  " + filename + " IN BLOB STORAGE [raw_data]")
             # fm.saveRawFile(filename, app.config["RAWDATA"])
@@ -112,7 +121,13 @@ def getTarget(poc):
     filename = request.args.get("filename")
     if filename is None:
         os.abort(404)
-    return fm.getTargetFieldsByPoc(poc, filename)
+    if poc == "poc1":
+        uploadfolder = app.config['UPLOAD_FOLDER']
+    elif poc == "poc2":
+        uploadfolder = app.config['UPLOAD_FOLDER_4']
+    else:
+        os.abort(404)
+    return fm.getTargetFieldsByPoc(poc, filename,uploadfolder)
 
 
 @app.route("/<poc>/sheettypes", methods=['GET'])

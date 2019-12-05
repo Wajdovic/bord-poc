@@ -15,10 +15,9 @@ def getAdfClient():
     return DataFactoryManagementClient(credentials, subscription_id)
 
 
-def executePipline(params):
+def executePipline(params,p_name):
     rg_name = app.config["RG_NAME"]
     df_name = app.config["DF_NAME"]
-    p_name = app.config["P_NAME"]
     adf_client = getAdfClient()
     return adf_client.pipelines.create_run(rg_name, df_name, p_name, params)
 
