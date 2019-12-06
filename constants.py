@@ -122,5 +122,22 @@ possibleMappingPoc1 = {
                        "Ceded_Premium_Change":["Written Premium"],
                        "Ceded_Comm_Change":["Commission"],
                         "Ceded_UPR_Change":["Unearned PremiumChg_"],
-                       "Date_of_Loss":["D_O_L"]
+                       "Date_of_Loss":["D_O_L"],
+                        "Ceded_Pd_Loss_Change":["CurrentPer PaidLoss"],
+                        "Ceded_Pd_LAE_Change":["CurrentPer_PaidExpense","CurrentPer_ PaidExpense"],
+                        "Ceded_OS_Loss_Change":["Outstanding Loss"],
+                         "Ceded_OS_LAE_Change":["Outstanding Expense"]
                        }
+possibleMappingPoc2 = {
+                       "Policy ID":["POLICY"],
+                       "Insured Name": ["INSURED_NAME"],
+                        "SIC Code":["CUR_SIC"],
+                        "New Or Renewal":["POL_STATUS"],
+                        "Coverage Name":["LOB"],
+                         "Attachment Orig CCY":["ATTACH_FINAL"],
+                         "100Pct Occurrence Limit Orig CCY":["LIMIT_FINAL"],
+                          "Gross Written Premium Orig CCY":["wp"],
+                          "Policy Effective Date":["Effective Date"],
+                           "Policy Expiration Date":["Expiry Date"],
+                           "Business Division":["Policy Listing"]
+}

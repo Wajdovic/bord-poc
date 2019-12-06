@@ -76,7 +76,7 @@ def readExcel(fileName, uploadfolder):
     sheets = getSheetNames(fileName, uploadfolder)
     for sheet in sheets:
         df = getDataFrameBySheet(fileName, sheet, uploadfolder)
-        res[sheet] = {"header": list(df.columns), "data": json.loads(convertToJSON(df))}
+        res[sheet] = {"header": list(df.columns), "data": json.loads(convertToJSON(df.head(100)))}
     return res
 
 
@@ -160,7 +160,7 @@ def executePipeLine4(filenames):
     return adf.executePipline(params,app.config["P_NAME4"])
 
 
-def automaticHeaderMapper(mappedField, headers):
+def automaticHeaderMapper(mappedField, headers,poc):
     for target in mappedField:
         for col in headers:
             copy = col
@@ -168,11 +168,10 @@ def automaticHeaderMapper(mappedField, headers):
                 if str.strip(copy.lower()) == " ".join(target["name"].split("_")).lower():
                     target["value"] = col
                     break
-                elif checkIfHeaderIsInPossibleMappedValues(copy, target):
+                elif checkIfHeaderIsInPossibleMappedValues(copy, target,poc):
                     target["value"] = col
                     break
-                elif lev.ratio(str.strip(copy.lower()), " ".join(target["name"].split("_")).lower()) >= app.config[
-                    "MINLEV"]:
+                elif lev.ratio(str.strip(copy.lower()), " ".join(target["name"].split("_")).lower()) >= app.config["MINLEV"]:
                     target["value"] = col
                     break
             except:
@@ -187,22 +186,32 @@ def getTargetFieldsByPoc(poc, filename, uploadfolder):
     if poc == app.config["POC1"]:
         for sheet in getSheetNames(filename, uploadfolder):
             targetFields = copy.deepcopy(const.targetFilds1)
-            res[sheet] = automaticHeaderMapper(targetFields, dfjson[sheet]["header"])
+            res[sheet] = automaticHeaderMapper(targetFields, dfjson[sheet]["header"],poc)
         print("END GETTING TARGET FIELDS FOR POC: " + poc)
         return res
     elif poc == app.config["POC2"]:
         for sheet in getSheetNames(filename, uploadfolder):
-            targetFields = const.targetFilds2
-            res[sheet] = targetFields
+            targetFields = copy.deepcopy(const.targetFilds2)
+            res[sheet] = automaticHeaderMapper(targetFields, dfjson[sheet]["header"],poc)
         print("END GETTING TARGET FIELDS FOR POC: " + poc)
         return res
+    # elif poc == app.config["POC2"]:
+    #     for sheet in getSheetNames(filename, uploadfolder):
+    #         targetFields = const.targetFilds2
+    #         res[sheet] = targetFields
+    #     print("END GETTING TARGET FIELDS FOR POC: " + poc)
+    #     return res
     else:
         print("ERROR GETTING TARGET FIELDS FOR POC: " + poc)
         os.abort(404)
 
 
-def checkIfHeaderIsInPossibleMappedValues(col, target):
-    pssibleValues = const.possibleMappingPoc1[target["name"]]
+def checkIfHeaderIsInPossibleMappedValues(col, target,poc):
+    pssibleValues = False
+    if poc == app.config["POC1"]:
+        pssibleValues = const.possibleMappingPoc1[target["name"]]
+    elif poc == app.config["POC2"]:
+        pssibleValues = const.possibleMappingPoc2[target["name"]]
     return str.strip(col) in pssibleValues
 
 
