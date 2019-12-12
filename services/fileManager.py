@@ -79,7 +79,7 @@ def convertToJSON(df):
 def readExcel(fileName, uploadfolder):
     res = {}
     #sheets = getSheetNames(fileName, uploadfolder)
-    sheets = get_sheet_details(uploadfolder+'/'+fileName)
+    sheets = get_sheet_details(os.path.join(uploadfolder, fileName))
     for sheet in sheets:
         df = getDataFrameBySheet(fileName, sheet, uploadfolder,nrows=50)
         res[sheet] = {"header": list(df.columns), "data": json.loads(convertToJSON(df.head(100)))}
