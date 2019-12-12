@@ -1,10 +1,15 @@
 import os
+import shutil
 import uuid
+import zipfile
 
+import xmltodict as xmltodict
 from azure.storage.blob import BlockBlobService
 import pandas as pd
 import json
 from flask import current_app as app
+from pandas.tests.io.excel.test_openpyxl import openpyxl
+
 import services.azureManager as adf
 import numpy as np
 import constants as const
@@ -29,23 +34,23 @@ def getSheetNames(filename, uploadfolder):
     return list(df.keys())
 
 
-def getDataFrameBySheet(FileName, Sheetname, uploadfolder, header_index=-1, data_end_index=None):
+def getDataFrameBySheet(FileName, Sheetname, uploadfolder, header_index=-1, data_end_index=None,nrows=None):
     df = None
     if header_index == -1:
         i = -1
         is_header = True
         while is_header and i <= 5:
-            df = pd.read_excel(os.path.join(uploadfolder, FileName), sheet_name=Sheetname, skiprows=[i])
+            df = pd.read_excel(os.path.join(uploadfolder, FileName), sheet_name=Sheetname, skiprows=[i],nrows=nrows)
             if all(isinstance(item, str) for item in df.columns.values):
                 is_header = False
             i += 1
         # df.columns = [col.strip().lower() for col in df.columns]
         if i == 6:
             df = pd.read_excel(os.path.join(uploadfolder), FileName, sheet_name=Sheetname,
-                               skiprows=[header_index])
+                               skiprows=[header_index],nrows=nrows)
     else:
         df = pd.read_excel(os.path.join(uploadfolder), FileName, sheet_name=Sheetname,
-                           skiprows=[header_index])
+                           skiprows=[header_index],nrows=nrows)
 
     if data_end_index is not None:
         df.drop(df.index[data_end_index])
@@ -73,9 +78,10 @@ def convertToJSON(df):
 
 def readExcel(fileName, uploadfolder):
     res = {}
-    sheets = getSheetNames(fileName, uploadfolder)
+    #sheets = getSheetNames(fileName, uploadfolder)
+    sheets = get_sheet_details(uploadfolder+'/'+fileName)
     for sheet in sheets:
-        df = getDataFrameBySheet(fileName, sheet, uploadfolder)
+        df = getDataFrameBySheet(fileName, sheet, uploadfolder,nrows=50)
         res[sheet] = {"header": list(df.columns), "data": json.loads(convertToJSON(df.head(100)))}
     return res
 
@@ -235,7 +241,6 @@ def transformAndSaveAndExecute4(filename, request):
     # print(dfinput)
     # return "Done"
     run_exec = executePipeLine4(dfinput)
-    # deleteFileByPath(app.config["UPLOAD_FOLDER"] + '/' + originalFilename)
     print(" ---- Pipeline Run ID: " + str(run_exec.run_id), " Filename: " + filename)
     print(" ---- END EXECUTING ADF PIPELINE")
     return {"status": "Launched", "runid": str(run_exec.run_id)}
@@ -259,3 +264,31 @@ def transformData4(filename, request, res, sheet, uploadfolder):
     name = sheet + '-' + id + '.json'
     doc["sheetname"] = name
     res[sheet] = doc
+
+def get_sheet_details(file_path):
+    sheets = []
+    file_name = os.path.splitext(os.path.split(file_path)[-1])[0]
+    # Make a temporary directory with the file name
+    directory_to_extract_to = os.path.join('./temp', file_name+'zip')
+    os.mkdir(directory_to_extract_to)
+
+    # Extract the xlsx file as it is just a zip file
+    zip_ref = zipfile.ZipFile(file_path, 'r')
+    zip_ref.extractall(directory_to_extract_to)
+    zip_ref.close()
+
+    # Open the workbook.xml which is very light and only has meta data, get sheets from it
+    path_to_workbook = os.path.join(directory_to_extract_to, 'xl', 'workbook.xml')
+    with open(path_to_workbook, 'r') as f:
+        xml = f.read()
+        dictionary = xmltodict.parse(xml)
+        for sheet in dictionary['workbook']['sheets']['sheet']:
+            # sheet_details = {
+            #     'id': sheet['@sheetId'], # can be @sheetId for some versions
+            #     'name': sheet['@name'] # can be @name
+            # }
+            sheets.append(sheet['@name'])
+
+    # Delete the extracted files directory
+    shutil.rmtree(directory_to_extract_to)
+    return sheets
